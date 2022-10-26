@@ -26,21 +26,46 @@ router.get('/balance/:user_id', async (request, response) => {
 });
 
 // Add/Remove to watchlist
+// router.put('/watchlist_activity', async (request, response) => {
+//     try {
+//         const user = await User.findById(request.body.user_id);
+//         if (!user) return response.status(400).json(`User does not exit with USER_ID:${request.body.user_id}`);
+
+//         if (user.watchlist.includes(request.body.symbol)) {
+//             await user.updateOne({ $pull: { watchlist: request.body.symbol } });
+//             const updated = await User.findById(request.body.user_id);
+//             const { password, ...others } = updated._doc;
+//             response.status(200).json(others);
+//         } else {
+//             await user.updateOne({ $push: { watchlist: request.body.symbol } });
+//             const updated = await User.findById(request.body.user_id);
+//             const { password, ...others } = updated._doc;
+//             response.status(200).json(others);
+//         }
+
+//     } catch (err) {
+//         return response.status(500).json(err);
+//     }
+// });
+
 router.put('/watchlist_activity', async (request, response) => {
     try {
         const user = await User.findById(request.body.user_id);
         if (!user) return response.status(400).json(`User does not exit with USER_ID:${request.body.user_id}`);
 
-        if (user.watchlist.includes(request.body.symbol)) {
-            await user.updateOne({ $pull: { watchlist: request.body.symbol } });
-            const updated = await User.findById(request.body.user_id);
-            const { password, ...others } = updated._doc;
-            response.status(200).json(others);
+        const watlistitem = await User.find(
+            { "watchlist.tab": request.body.tab },
+            { _id: 0, watchlist: { $elemMatch: { symbol: request.body.symbol } } });
+
+        if (watlistitem.length && watlistitem[0].watchlist.length > 0) {
+            await user.updateOne({ $pull: { watchlist: { tab: request.body.tab, symbol: request.body.symbol } } });
+            const updatedUser = await User.findById(request.body.user_id);
+            response.status(200).json(updatedUser);
         } else {
-            await user.updateOne({ $push: { watchlist: request.body.symbol } });
-            const updated = await User.findById(request.body.user_id);
-            const { password, ...others } = updated._doc;
-            response.status(200).json(others);
+            const newItem = { tab: request.body.tab, symbol: request.body.symbol };
+            await user.updateOne({ $push: { watchlist: newItem } });
+            const updatedUser = await User.findById(request.body.user_id);
+            return response.status(200).json(updatedUser);
         }
 
     } catch (err) {
